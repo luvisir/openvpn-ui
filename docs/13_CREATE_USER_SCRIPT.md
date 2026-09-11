@@ -3,7 +3,7 @@
 The UI calls a non-interactive script. It should accept:
 
 ```text
-ui-create-user.sh <common_name> <client_key_password> <reason>
+ui-create-user.sh <common_name> <client_key_password> [reason]
 ```
 
 Example:
@@ -57,7 +57,6 @@ lifecycle:
     - /etc/openvpn/scripts/ui-create-user.sh
     - "{common_name}"
     - "{password}"
-    - "{reason}"
 
 features:
   allow_create_user: true

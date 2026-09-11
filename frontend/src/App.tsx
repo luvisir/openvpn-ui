@@ -370,17 +370,15 @@ function UsersPage({
 }) {
   const [commonName, setCommonName] = useState("");
   const [password, setPassword] = useState("");
-  const [reason, setReason] = useState("");
   const features = config?.features ?? {};
 
   async function createUser(event: FormEvent) {
     event.preventDefault();
     try {
-      await onPost("/api/users", { common_name: commonName, password, reason });
+      await onPost("/api/users", { common_name: commonName, password });
       onActionMessage(`${commonName} 已提交创建`);
       setCommonName("");
       setPassword("");
-      setReason("");
       await onRefresh();
     } catch (err) {
       onActionMessage(err instanceof Error ? err.message : "创建失败");
@@ -439,11 +437,6 @@ function UsersPage({
             onChange={(event) => setPassword(event.target.value)}
             placeholder="客户端私钥密码"
             autoComplete="new-password"
-          />
-          <input
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="审计原因"
           />
           <button className="action-button" disabled={!features.allow_create_user}>
             新建
