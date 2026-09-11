@@ -24,6 +24,7 @@
 |---|---|---|
 | GET | `/api/connections` | Current OpenVPN client list |
 | GET | `/api/connections/{common_name}` | Current connection for one user |
+| POST | `/api/connections/{common_name}/kick` | Disconnect one active client through OpenVPN management |
 
 ## Usage
 
@@ -38,6 +39,13 @@
 |---|---|---|
 | GET | `/api/logs/openvpn` | OpenVPN runtime logs |
 | GET | `/api/logs/audit` | Admin audit logs |
+
+## Command Placeholders
+
+Configured lifecycle commands are argv arrays and may use:
+
+- `{common_name}`
+- `{reason}`
 
 ## Request Requirements
 

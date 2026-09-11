@@ -8,6 +8,7 @@
 - `user.disabled`
 - `user.enabled`
 - `user.revoked`
+- `user.kicked`
 - `profile.downloaded`
 - `openvpn.reload_requested`
 - `openvpn.reload_succeeded`

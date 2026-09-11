@@ -34,3 +34,9 @@ Revocation must use a high-risk confirmation dialog with:
 - Typed confirmation
 
 Disable can be a lighter confirmation because it should be reversible.
+
+## Connection Actions
+
+The Connections screen should allow a single online user to be disconnected when
+OpenVPN management is configured and `allow_kick_user` is enabled. This must not
+restart or reload OpenVPN.

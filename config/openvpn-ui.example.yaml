@@ -1,0 +1,61 @@
+# Copy this file to config/openvpn-ui.yaml on the OpenVPN server, fill in the
+# real paths from the existing deployment, then restart the openvpn-ui service.
+
+app:
+  name: OpenVPN UI
+  environment: development
+  database_url: sqlite:///./openvpn-ui.db
+
+server:
+  config_path: /etc/openvpn/server/server.conf
+  service_name: openvpn-server@server
+  status_file: /var/log/openvpn/status.log
+  log_file: /var/log/openvpn/openvpn.log
+  # Recommended for live status and no-restart kick operations.
+  # Keep the OpenVPN management interface bound to 127.0.0.1.
+  management_host:
+  management_port:
+  management_password_file:
+
+certificates:
+  ca_dir: /etc/openvpn/easy-rsa/pki
+  easy_rsa_dir: /etc/openvpn/easy-rsa
+  issued_dir: /etc/openvpn/easy-rsa/pki/issued
+  private_dir: /etc/openvpn/easy-rsa/pki/private
+  crl_path: /etc/openvpn/easy-rsa/pki/crl.pem
+  client_profiles_dir: /etc/openvpn/clients
+
+lifecycle:
+  # If a client-config-dir exists, reversible disable can be implemented there
+  # before certificate revocation is enabled.
+  client_config_dir:
+  create_user_command: []
+  generate_profile_command: []
+  disable_user_command: []
+  enable_user_command: []
+  revoke_user_command: []
+  reload_command: []
+
+replicas: []
+# Example:
+# replicas:
+#   - name: vpn-1
+#     role: local
+#     management_host: 127.0.0.1
+#     management_port: 7505
+#     management_password_file: /etc/openvpn/management-password
+#   - name: vpn-2
+#     role: ssh
+#     ssh_host: 192.168.0.77
+#     ssh_user: root
+#     ssh_port: 22
+#     management_host: 127.0.0.1
+#     management_port: 7505
+#     management_password_file: /etc/openvpn/management-password
+
+features:
+  allow_create_user: false
+  allow_disable_user: false
+  allow_kick_user: false
+  allow_revoke_user: false
+  allow_openvpn_reload: false

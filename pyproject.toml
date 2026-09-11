@@ -1,0 +1,31 @@
+[project]
+name = "openvpn-ui"
+version = "0.1.0"
+description = "Management UI for an existing OpenVPN deployment"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.110",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.3",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

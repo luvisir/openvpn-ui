@@ -17,11 +17,11 @@
 
 ## Phase 3: User Lifecycle
 
-- Create user.
+- Create user through configured command.
 - Generate or expose client profile.
-- Disable user.
-- Enable user.
-- Revoke user.
+- Disable user through configured command or local override.
+- Enable user through configured command or local override.
+- Revoke user through configured command.
 
 ## Phase 4: Audit and Hardening
 
