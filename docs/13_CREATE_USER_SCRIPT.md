@@ -3,7 +3,7 @@
 The UI calls a non-interactive script. It should accept:
 
 ```text
-ui-create-user.sh <common_name> <client_key_password> [reason]
+ui-create-user.sh <common_name> <client_key_password> <ca_key_password> [reason]
 ```
 
 The repository includes a ready-to-copy script at `scripts/ui-create-user.sh`.
@@ -21,7 +21,8 @@ set -euo pipefail
 
 client="$1"
 client_password="$2"
-reason="${3:-}"
+ca_password="$3"
+reason="${4:-}"
 
 case "$client" in
   ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]*)
@@ -32,6 +33,11 @@ esac
 
 if [ -z "$client_password" ]; then
   echo "client password is required" >&2
+  exit 2
+fi
+
+if [ -z "$ca_password" ]; then
+  echo "CA password is required" >&2
   exit 2
 fi
 
@@ -48,7 +54,10 @@ unset CLIENT_KEY_PASSWORD EASYRSA_PASSOUT
 cd /etc/openvpn/easy-rsa/easyrsa3
 export EASYRSA_BATCH=1
 ./easyrsa import-req "/etc/openvpn/client/easyrsa3/pki/reqs/$client.req" "$client"
+export CA_KEY_PASSWORD="$ca_password"
+export EASYRSA_PASSIN="env:CA_KEY_PASSWORD"
 ./easyrsa --batch sign client "$client"
+unset CA_KEY_PASSWORD EASYRSA_PASSIN
 
 cp /etc/openvpn/easy-rsa/easyrsa3/pki/ca.crt "/etc/openvpn/client/$client/"
 cp "/etc/openvpn/easy-rsa/easyrsa3/pki/issued/$client.crt" "/etc/openvpn/client/$client/"
@@ -66,6 +75,7 @@ lifecycle:
     - /etc/openvpn/scripts/ui-create-user.sh
     - "{common_name}"
     - "{password}"
+    - "{ca_password}"
 
 features:
   allow_create_user: true

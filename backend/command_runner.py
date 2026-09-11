@@ -22,6 +22,7 @@ def run_configured_command(
     common_name: str,
     reason: str = "",
     password: str = "",
+    ca_password: str = "",
     timeout_seconds: int = 600,
 ) -> CommandResult:
     if not command:
@@ -33,6 +34,7 @@ def run_configured_command(
         "{common_name}": common_name,
         "{reason}": reason,
         "{password}": password,
+        "{ca_password}": ca_password,
     }
     argv = [replace_tokens(part, replacements) for part in command]
     try:
