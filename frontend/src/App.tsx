@@ -427,20 +427,23 @@ function UsersPage({
         </div>
         <form className="form-row" onSubmit={createUser}>
           <input
+            required
             value={commonName}
             onChange={(event) => setCommonName(event.target.value)}
             placeholder="common name"
           />
           <input
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="审计原因"
-          />
-          <input
+            required
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="客户端私钥密码"
+            autoComplete="new-password"
+          />
+          <input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="审计原因"
           />
           <button className="action-button" disabled={!features.allow_create_user}>
             新建
@@ -773,8 +776,28 @@ function formatBytes(value: number) {
 async function readError(response: Response) {
   try {
     const payload = await response.json();
-    return payload.detail || response.statusText;
+    return formatErrorDetail(payload.detail) || response.statusText;
   } catch {
     return response.statusText;
   }
+}
+
+function formatErrorDetail(detail: unknown): string {
+  if (!detail) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "msg" in item) {
+          const location = "loc" in item && Array.isArray(item.loc) ? item.loc.join(".") : "";
+          const message = typeof item.msg === "string" ? item.msg : JSON.stringify(item.msg);
+          return location ? `${location}: ${message}` : message;
+        }
+        return JSON.stringify(item);
+      })
+      .join("; ");
+  }
+  if (typeof detail === "object") return JSON.stringify(detail);
+  return String(detail);
 }
