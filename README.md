@@ -39,6 +39,8 @@ For no-restart connection management and single-user disconnect behavior, see
 
 For two-node or multi-node connection visibility, see `docs/11_REPLICAS.md`.
 
+For single-process production serving, see `docs/12_DEPLOYMENT.md`.
+
 ## Current Framework
 
 The repository now contains a minimal backend and frontend skeleton:
@@ -71,6 +73,8 @@ backend at it:
 ```bash
 OPENVPN_UI_CONFIG=/etc/openvpn-ui/openvpn-ui.yaml uvicorn backend.main:app
 ```
+
+If `frontend/dist` exists, the backend also serves the frontend at `/`.
 
 ## Development Run
 
