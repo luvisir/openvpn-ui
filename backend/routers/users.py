@@ -11,6 +11,7 @@ router = APIRouter()
 
 class CreateUserRequest(BaseModel):
     common_name: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=256)
     reason: str = ""
 
 
@@ -38,6 +39,7 @@ def create_user(payload: CreateUserRequest) -> dict[str, object]:
             config.lifecycle.create_user_command,
             payload.common_name,
             payload.reason,
+            payload.password,
         )
         add_audit_event(config, "user.created", payload.common_name, payload.reason)
         return {"result": "created", "stdout": result.stdout}

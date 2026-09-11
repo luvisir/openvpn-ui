@@ -63,6 +63,10 @@ Supported command placeholders:
 
 - `{common_name}`
 - `{reason}`
+- `{password}` for create-user commands only
+
+Do not echo `{password}` in scripts. The UI passes it only to the configured
+create-user command and does not write it to audit logs.
 
 ## Feature Gates
 

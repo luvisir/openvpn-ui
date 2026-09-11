@@ -41,6 +41,8 @@ For two-node or multi-node connection visibility, see `docs/11_REPLICAS.md`.
 
 For single-process production serving, see `docs/12_DEPLOYMENT.md`.
 
+For password-protected client key creation, see `docs/13_CREATE_USER_SCRIPT.md`.
+
 ## Current Framework
 
 The repository now contains a minimal backend and frontend skeleton:

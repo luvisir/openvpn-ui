@@ -17,7 +17,12 @@ class CommandResult:
     stderr: str
 
 
-def run_configured_command(command: list[str], common_name: str, reason: str = "") -> CommandResult:
+def run_configured_command(
+    command: list[str],
+    common_name: str,
+    reason: str = "",
+    password: str = "",
+) -> CommandResult:
     if not command:
         raise CommandError("Command is not configured")
     if not is_safe_common_name(common_name):
@@ -26,6 +31,7 @@ def run_configured_command(command: list[str], common_name: str, reason: str = "
     replacements = {
         "{common_name}": common_name,
         "{reason}": reason,
+        "{password}": password,
     }
     argv = [replace_tokens(part, replacements) for part in command]
     try:

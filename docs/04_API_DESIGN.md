@@ -46,6 +46,7 @@ Configured lifecycle commands are argv arrays and may use:
 
 - `{common_name}`
 - `{reason}`
+- `{password}` for create-user commands only; never store it in audit logs.
 
 ## Request Requirements
 
