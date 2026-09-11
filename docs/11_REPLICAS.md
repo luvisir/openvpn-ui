@@ -29,10 +29,12 @@ replicas:
     management_password_file: /etc/openvpn/management-password
 ```
 
-`status_file` is read only. It can be used before the management interface is
-enabled. For SSH replicas, the panel reads that file through SSH. Leave
-`management_host`, `management_port`, and `management_password_file` empty until
-the OpenVPN management line has been added on that node.
+`status_file` is read only and is preferred for the Connections screen. It can
+be used before the management interface is enabled. For SSH replicas, the panel
+reads that file through SSH. If a replica does not set `status_file`, it inherits
+`server.status_file`. Leave `management_host`, `management_port`, and
+`management_password_file` empty until the OpenVPN management line has been
+added on that node.
 
 ## OpenVPN Config On Each Node
 

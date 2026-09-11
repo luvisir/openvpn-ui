@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from dataclasses import asdict
 from typing import Optional
@@ -21,7 +22,12 @@ class ReplicaError(RuntimeError):
 
 def configured_replicas(config: OpenVPNUIConfig) -> list[ReplicaConfig]:
     if config.replicas:
-        return config.replicas
+        return [
+            replica.model_copy(
+                update={"status_file": replica.status_file or config.server.status_file}
+            )
+            for replica in config.replicas
+        ]
     if config.server.management_host and config.server.management_port:
         return [
             ReplicaConfig(
@@ -64,19 +70,19 @@ def replica_statuses(config: OpenVPNUIConfig) -> list[dict[str, object]]:
 
 
 def get_replica_connections(replica: ReplicaConfig) -> list[OpenVPNConnection]:
-    if replica.management_host and replica.management_port:
+    if replica.status_file:
         try:
             if replica.role == "local":
-                return local_client(replica).status()
-            return parse_status_text(run_remote_management_command(replica, "status 2"))
-        except (OpenVPNManagementError, ReplicaError):
-            if not replica.status_file:
+                return parse_status_file(replica.status_file)
+            return parse_status_text(remote_cat(replica, str(replica.status_file)))
+        except (OSError, ReplicaError):
+            if not (replica.management_host and replica.management_port):
                 raise
 
-    if replica.status_file:
+    if replica.management_host and replica.management_port:
         if replica.role == "local":
-            return parse_status_file(replica.status_file)
-        return parse_status_text(remote_cat(replica, str(replica.status_file)))
+            return local_client(replica).status()
+        return parse_status_text(run_remote_management_command(replica, "status 2"))
 
     raise ReplicaError(f"Replica {replica.name} has no management endpoint or status_file")
 
@@ -144,6 +150,7 @@ def run_ssh(
     input_text: Optional[str] = None,
 ) -> subprocess.CompletedProcess[str]:
     destination = f"{replica.ssh_user}@{replica.ssh_host}"
+    remote = shlex.join(remote_command)
     argv = [
         "ssh",
         "-p",
@@ -153,7 +160,7 @@ def run_ssh(
         "-o",
         f"ConnectTimeout={replica.ssh_connect_timeout}",
         destination,
-        *remote_command,
+        remote,
     ]
     return subprocess.run(
         argv,
