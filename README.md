@@ -43,6 +43,9 @@ For single-process production serving, see `docs/12_DEPLOYMENT.md`.
 
 For password-protected client key creation, see `docs/13_CREATE_USER_SCRIPT.md`.
 
+For create/disable/enable/revoke scripts and the server-ready config sample, see
+`docs/14_USER_LIFECYCLE_SCRIPTS.md`.
+
 ## Current Framework
 
 The repository now contains a minimal backend and frontend skeleton:

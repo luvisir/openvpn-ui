@@ -1,0 +1,78 @@
+# Server-ready sample for the existing vpn-1/vpn-2 layout.
+# Copy values into config/openvpn-ui.yaml on the VPN server and restart only openvpn-ui.
+
+app:
+  name: OpenVPN UI
+  environment: production
+  database_url: sqlite:///./openvpn-ui.db
+
+server:
+  config_path: /etc/openvpn/server/server.conf
+  service_name: openvpn.service
+  status_file: /data/log/openvpn/openvpn-status.log
+  log_file: /data/log/openvpn/openvpn.log
+  management_host: 127.0.0.1
+  management_port: 7505
+  management_password_file: /etc/openvpn/management-password
+
+certificates:
+  ca_dir: /etc/openvpn/easy-rsa/easyrsa3/pki
+  easy_rsa_dir: /etc/openvpn/easy-rsa/easyrsa3
+  issued_dir: /etc/openvpn/easy-rsa/easyrsa3/pki/issued
+  private_dir: /etc/openvpn/easy-rsa/easyrsa3/pki/private
+  crl_path: /etc/openvpn/easy-rsa/easyrsa3/pki/crl.pem
+  client_profiles_dir: /etc/openvpn/client
+
+lifecycle:
+  client_config_dir: /etc/openvpn/ccd
+  command_timeout_seconds: 600
+  create_user_command:
+    - /etc/openvpn/scripts/ui-create-user.sh
+    - "{common_name}"
+    - "{password}"
+    - "{ca_password}"
+    - 192.168.0.77
+  disable_user_command:
+    - /etc/openvpn/scripts/ui-disable-user.sh
+    - "{common_name}"
+    - /etc/openvpn/ccd
+    - 192.168.0.77
+  enable_user_command:
+    - /etc/openvpn/scripts/ui-enable-user.sh
+    - "{common_name}"
+    - /etc/openvpn/ccd
+    - 192.168.0.77
+  revoke_user_command:
+    - /etc/openvpn/scripts/ui-revoke-user.sh
+    - "{common_name}"
+    - "{ca_password}"
+    - 192.168.0.77
+  reload_command:
+    - systemctl
+    - restart
+    - openvpn.service
+
+replicas:
+  - name: vpn-1
+    role: local
+    status_file: /data/log/openvpn/openvpn-status.log
+    management_host: 127.0.0.1
+    management_port: 7505
+    management_password_file: /etc/openvpn/management-password
+
+  - name: vpn-2
+    role: ssh
+    ssh_host: 192.168.0.77
+    ssh_user: root
+    ssh_port: 22
+    status_file: /data/log/openvpn/openvpn-status.log
+    management_host: 127.0.0.1
+    management_port: 7505
+    management_password_file: /etc/openvpn/management-password
+
+features:
+  allow_create_user: true
+  allow_disable_user: true
+  allow_kick_user: true
+  allow_revoke_user: true
+  allow_openvpn_reload: true

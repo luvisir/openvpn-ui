@@ -17,7 +17,9 @@ The UI exposes this through:
 - `GET /api/connections`
 - `POST /api/connections/{common_name}/kick`
 
-The kick API is disabled unless `features.allow_kick_user` is true.
+The kick API is disabled unless `features.allow_kick_user` is true. When
+management is configured, disabling or revoking a user also attempts to kick only
+that user's active sessions on configured nodes.
 
 ## Server Config
 

@@ -4,9 +4,10 @@ set -euo pipefail
 client="${1:-}"
 client_password="${2:-}"
 ca_password="${3:-}"
+replica_host="${4:-192.168.0.77}"
 
 case "$client" in
-  ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]*)
+  ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.@-]*)
     echo "invalid client name" >&2
     exit 2
     ;;
@@ -25,7 +26,6 @@ fi
 client_req_dir="/etc/openvpn/client/easyrsa3"
 server_ca_dir="/etc/openvpn/easy-rsa/easyrsa3"
 client_dir="/etc/openvpn/client/$client"
-replica_host="192.168.0.77"
 
 mkdir -p "$client_dir"
 

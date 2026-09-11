@@ -65,7 +65,7 @@ Supported command placeholders:
 - `{common_name}`
 - `{reason}`
 - `{password}` for create-user commands only
-- `{ca_password}` for create-user signing only
+- `{ca_password}` for create-user signing and revoke/gen-crl operations
 
 Do not echo `{password}` or `{ca_password}` in scripts. The UI passes them only
 to the configured create-user command and does not write them to audit logs.

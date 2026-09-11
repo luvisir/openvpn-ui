@@ -285,7 +285,16 @@ export function App() {
             {activePage === "audit" && (
               <AuditPage audit={audit} openvpnLog={openvpnLog} onRefresh={refreshLogs} />
             )}
-            {activePage === "settings" && <SettingsPage health={health} config={config} />}
+            {activePage === "settings" && (
+              <SettingsPage
+                health={health}
+                config={config}
+                message={message}
+                onActionMessage={setMessage}
+                onPost={postJson}
+                onRefresh={refreshSystem}
+              />
+            )}
           </>
         )}
       </section>
@@ -395,9 +404,15 @@ function UsersPage({
         onActionMessage("注销确认不匹配，操作已取消");
         return;
       }
+      const caPassword = window.prompt("请输入 CA 签发密码，用于注销证书和生成 CRL") ?? "";
+      if (!caPassword) {
+        onActionMessage("缺少 CA 密码，操作已取消");
+        return;
+      }
       await execute(`/api/users/${encodeURIComponent(user.common_name)}/revoke`, {
         reason: actionReason,
-        confirmation
+        confirmation,
+        ca_password: caPassword
       });
       return;
     }
@@ -699,11 +714,37 @@ function AuditPage({
 
 function SettingsPage({
   health,
-  config
+  config,
+  message,
+  onActionMessage,
+  onPost,
+  onRefresh
 }: {
   health: HealthResponse | null;
   config: ConfigResponse | null;
+  message: string | null;
+  onActionMessage: (value: string | null) => void;
+  onPost: (url: string, body: object) => Promise<unknown>;
+  onRefresh: () => Promise<void>;
 }) {
+  const reloadConfigured = Boolean(config?.lifecycle.reload_configured);
+
+  async function restartOpenVPN() {
+    const confirmation = window.prompt("输入 restart 确认重启 OpenVPN") ?? "";
+    if (confirmation !== "restart") {
+      onActionMessage("重启确认不匹配，操作已取消");
+      return;
+    }
+    const reason = window.prompt("请输入审计原因") ?? "";
+    try {
+      await onPost("/api/system/openvpn/reload", { confirmation, reason });
+      onActionMessage("OpenVPN 重启命令已执行");
+      await onRefresh();
+    } catch (err) {
+      onActionMessage(err instanceof Error ? err.message : "重启失败");
+    }
+  }
+
   return (
     <section className="grid">
       <article className="panel wide">
@@ -720,6 +761,27 @@ function SettingsPage({
           <h2>功能开关</h2>
         </div>
         <FeatureList features={config?.features ?? {}} />
+      </article>
+      <article className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>服务操作</h2>
+            <span>{reloadConfigured ? "已配置" : "未配置"}</span>
+          </div>
+        </div>
+        <button
+          className="danger-button"
+          disabled={!config?.features.allow_openvpn_reload}
+          onClick={restartOpenVPN}
+          title={
+            config?.features.allow_openvpn_reload
+              ? "输入确认后执行重启命令"
+              : "配置 allow_openvpn_reload 后可用"
+          }
+        >
+          重启 OpenVPN
+        </button>
+        {message && <p className="inline-message">{message}</p>}
       </article>
     </section>
   );

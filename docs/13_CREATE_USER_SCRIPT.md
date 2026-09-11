@@ -3,7 +3,7 @@
 The UI calls a non-interactive script. It should accept:
 
 ```text
-ui-create-user.sh <common_name> <client_key_password> <ca_key_password> [reason]
+ui-create-user.sh <common_name> <client_key_password> <ca_key_password> [replica_host]
 ```
 
 The repository includes a ready-to-copy script at `scripts/ui-create-user.sh`.
@@ -22,10 +22,10 @@ set -euo pipefail
 client="$1"
 client_password="$2"
 ca_password="$3"
-reason="${4:-}"
+replica_host="${4:-192.168.0.77}"
 
 case "$client" in
-  ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-]*)
+  ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.@-]*)
     echo "invalid client name" >&2
     exit 2
     ;;
@@ -62,7 +62,7 @@ cp /etc/openvpn/easy-rsa/easyrsa3/pki/ca.crt "/etc/openvpn/client/$client/"
 cp "/etc/openvpn/easy-rsa/easyrsa3/pki/issued/$client.crt" "/etc/openvpn/client/$client/"
 cp "/etc/openvpn/client/easyrsa3/pki/private/$client.key" "/etc/openvpn/client/$client/"
 
-rsync -avz --delete --exclude='server.conf' /etc/openvpn/ root@192.168.0.77:/etc/openvpn/
+rsync -avz --delete --exclude='server.conf' /etc/openvpn/ "root@$replica_host:/etc/openvpn/"
 ```
 
 Config:
@@ -75,6 +75,7 @@ lifecycle:
     - "{common_name}"
     - "{password}"
     - "{ca_password}"
+    - 192.168.0.77
 
 features:
   allow_create_user: true

@@ -2,8 +2,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.command_runner import CommandError, run_configured_command
-from backend.config import ConfigLoadError, load_config
+from backend.config import ConfigLoadError, OpenVPNUIConfig, load_config
 from backend.database import add_audit_event, set_user_disabled
+from backend.openvpn_management import OpenVPNManagementError
+from backend.replicas import ReplicaError, configured_replicas, kill_on_replica
 from backend.users import list_users
 
 router = APIRouter()
@@ -19,6 +21,7 @@ class CreateUserRequest(BaseModel):
 class UserActionRequest(BaseModel):
     reason: str = ""
     confirmation: str = ""
+    ca_password: str = ""
 
 
 @router.get("")
@@ -65,10 +68,11 @@ def disable_user(common_name: str, payload: UserActionRequest) -> dict[str, obje
                 common_name,
                 payload.reason,
                 timeout_seconds=config.lifecycle.command_timeout_seconds,
-            )
+        )
         set_user_disabled(config, common_name, True)
+        kick_results = kick_user_on_configured_nodes(config, common_name)
         add_audit_event(config, "user.disabled", common_name, payload.reason)
-        return {"result": "disabled", "common_name": common_name}
+        return {"result": "disabled", "common_name": common_name, "kick_results": kick_results}
     except CommandError as exc:
         add_audit_event(config, "user.disabled", common_name, payload.reason, "failed", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -102,17 +106,19 @@ def revoke_user(common_name: str, payload: UserActionRequest) -> dict[str, objec
         raise HTTPException(status_code=403, detail="Revoke user feature is disabled")
     if payload.confirmation != common_name:
         raise HTTPException(status_code=400, detail="Confirmation must match common name")
-    if not payload.reason:
-        raise HTTPException(status_code=400, detail="Reason is required")
+    if not payload.ca_password:
+        raise HTTPException(status_code=400, detail="CA password is required")
     try:
         result = run_configured_command(
             config.lifecycle.revoke_user_command,
             common_name,
             payload.reason,
+            ca_password=payload.ca_password,
             timeout_seconds=config.lifecycle.command_timeout_seconds,
         )
+        kick_results = kick_user_on_configured_nodes(config, common_name)
         add_audit_event(config, "user.revoked", common_name, payload.reason)
-        return {"result": "revoked", "stdout": result.stdout}
+        return {"result": "revoked", "stdout": result.stdout, "kick_results": kick_results}
     except CommandError as exc:
         add_audit_event(config, "user.revoked", common_name, payload.reason, "failed", str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -123,3 +129,33 @@ def _load():
         return load_config()
     except ConfigLoadError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def kick_user_on_configured_nodes(
+    config: OpenVPNUIConfig, common_name: str
+) -> list[dict[str, str]]:
+    if not config.features.allow_kick_user:
+        return []
+
+    results: list[dict[str, str]] = []
+    for replica in configured_replicas(config):
+        try:
+            result = kill_on_replica(replica, common_name)
+            results.append(
+                {
+                    "node": replica.name,
+                    "result": result.get("result", "success"),
+                    "status": "success",
+                }
+            )
+            add_audit_event(config, "user.kicked", f"{replica.name}:{common_name}")
+        except (OpenVPNManagementError, ReplicaError) as exc:
+            results.append({"node": replica.name, "result": str(exc), "status": "failed"})
+            add_audit_event(
+                config,
+                "user.kicked",
+                f"{replica.name}:{common_name}",
+                result="failed",
+                error=str(exc),
+            )
+    return results
