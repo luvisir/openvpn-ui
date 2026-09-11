@@ -10,6 +10,7 @@ from backend.openvpn_management import (
     OpenVPNConnection,
     OpenVPNManagementClient,
     OpenVPNManagementError,
+    parse_status_file,
     parse_status_text,
 )
 
@@ -26,6 +27,7 @@ def configured_replicas(config: OpenVPNUIConfig) -> list[ReplicaConfig]:
             ReplicaConfig(
                 name="local",
                 role="local",
+                status_file=config.server.status_file,
                 management_host=config.server.management_host,
                 management_port=config.server.management_port,
                 management_password_file=config.server.management_password_file,
@@ -62,9 +64,21 @@ def replica_statuses(config: OpenVPNUIConfig) -> list[dict[str, object]]:
 
 
 def get_replica_connections(replica: ReplicaConfig) -> list[OpenVPNConnection]:
-    if replica.role == "local":
-        return local_client(replica).status()
-    return parse_status_text(run_remote_management_command(replica, "status 2"))
+    if replica.management_host and replica.management_port:
+        try:
+            if replica.role == "local":
+                return local_client(replica).status()
+            return parse_status_text(run_remote_management_command(replica, "status 2"))
+        except (OpenVPNManagementError, ReplicaError):
+            if not replica.status_file:
+                raise
+
+    if replica.status_file:
+        if replica.role == "local":
+            return parse_status_file(replica.status_file)
+        return parse_status_text(remote_cat(replica, str(replica.status_file)))
+
+    raise ReplicaError(f"Replica {replica.name} has no management endpoint or status_file")
 
 
 def kill_on_replica(replica: ReplicaConfig, common_name: str) -> dict[str, str]:
@@ -82,6 +96,8 @@ def find_replica(config: OpenVPNUIConfig, name: str) -> Optional[ReplicaConfig]:
 
 
 def local_client(replica: ReplicaConfig) -> OpenVPNManagementClient:
+    if not replica.management_host or not replica.management_port:
+        raise ReplicaError(f"Replica {replica.name} is missing management endpoint")
     password = None
     if replica.management_password_file:
         password = replica.management_password_file.read_text(encoding="utf-8").strip()

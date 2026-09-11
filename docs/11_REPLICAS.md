@@ -13,6 +13,7 @@ which node each connection belongs to.
 replicas:
   - name: vpn-1
     role: local
+    status_file: /var/log/openvpn/status.log
     management_host: 127.0.0.1
     management_port: 7505
     management_password_file: /etc/openvpn/management-password
@@ -22,10 +23,16 @@ replicas:
     ssh_host: 192.168.0.77
     ssh_user: root
     ssh_port: 22
+    status_file: /var/log/openvpn/status.log
     management_host: 127.0.0.1
     management_port: 7505
     management_password_file: /etc/openvpn/management-password
 ```
+
+`status_file` is read only. It can be used before the management interface is
+enabled. For SSH replicas, the panel reads that file through SSH. Leave
+`management_host`, `management_port`, and `management_password_file` empty until
+the OpenVPN management line has been added on that node.
 
 ## OpenVPN Config On Each Node
 

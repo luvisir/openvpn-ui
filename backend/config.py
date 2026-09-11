@@ -66,8 +66,9 @@ class LifecycleConfig(BaseModel):
 class ReplicaConfig(BaseModel):
     name: str
     role: Literal["local", "ssh"] = "local"
-    management_host: str = "127.0.0.1"
-    management_port: int = Field(default=7505, ge=1, le=65535)
+    status_file: Optional[Path] = None
+    management_host: Optional[str] = None
+    management_port: Optional[int] = Field(default=None, ge=1, le=65535)
     management_password_file: Optional[Path] = None
     ssh_host: Optional[str] = None
     ssh_user: str = "root"
@@ -136,6 +137,7 @@ class OpenVPNUIConfig(BaseModel):
                 {
                     "name": replica.name,
                     "role": replica.role,
+                    "status_file": str(replica.status_file) if replica.status_file else None,
                     "management_host": replica.management_host,
                     "management_port": replica.management_port,
                     "management_auth_configured": bool(replica.management_password_file),

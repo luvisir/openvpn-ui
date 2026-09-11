@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+from csv import reader
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -111,14 +112,101 @@ def parse_status_file(path: Path) -> list[OpenVPNConnection]:
 
 
 def parse_status_text(text: str) -> list[OpenVPNConnection]:
+    status_v2_rows = parse_status_v2_text(text)
+    if status_v2_rows:
+        return status_v2_rows
+    return parse_classic_status_text(text)
+
+
+def parse_status_v2_text(text: str) -> list[OpenVPNConnection]:
     rows: list[OpenVPNConnection] = []
+    client_header: list[str] = []
     for line in text.splitlines():
+        parts = parse_csv_line(line)
+        if len(parts) >= 3 and parts[0] == "HEADER" and parts[1] == "CLIENT_LIST":
+            client_header = parts[2:]
+            continue
         if line.startswith("CLIENT_LIST,"):
-            rows.append(parse_client_list_csv(line.split(",")))
+            rows.append(parse_client_list_csv(parts, client_header))
     return rows
 
 
-def parse_client_list_csv(parts: list[str]) -> OpenVPNConnection:
+def parse_classic_status_text(text: str) -> list[OpenVPNConnection]:
+    clients: dict[str, dict[str, object]] = {}
+    section = ""
+    for line in text.splitlines():
+        if line == "OpenVPN CLIENT LIST":
+            section = "clients"
+            continue
+        if line == "ROUTING TABLE":
+            section = "routes"
+            continue
+        if line in {"GLOBAL STATS", "END"}:
+            section = ""
+            continue
+
+        parts = parse_csv_line(line)
+        if not parts:
+            continue
+        if section == "clients":
+            if parts[0] in {"Updated", "Common Name"} or len(parts) < 5:
+                continue
+            common_name = parts[0]
+            clients[common_name] = {
+                "common_name": common_name,
+                "real_address": parts[1],
+                "virtual_address": "",
+                "bytes_received": parse_int(parts[2]),
+                "bytes_sent": parse_int(parts[3]),
+                "connected_since": normalize_connected_since(parts[4]),
+            }
+        elif section == "routes":
+            if parts[0] == "Virtual Address" or len(parts) < 2:
+                continue
+            common_name = parts[1]
+            if common_name in clients:
+                clients[common_name]["virtual_address"] = parts[0]
+
+    return [OpenVPNConnection(**client) for client in clients.values()]
+
+
+def parse_csv_line(line: str) -> list[str]:
+    return next(reader([line]))
+
+
+def parse_client_list_csv(
+    parts: list[str],
+    header: Optional[list[str]] = None,
+) -> OpenVPNConnection:
+    field_map = {
+        name: parts[index + 1] if index + 1 < len(parts) else ""
+        for index, name in enumerate(header or [])
+    }
+
+    if field_map:
+        common_name = field_map.get("Common Name", "")
+        real_address = field_map.get("Real Address", "")
+        virtual_address = field_map.get("Virtual Address", "")
+        bytes_received = parse_int(field_map.get("Bytes Received", ""))
+        bytes_sent = parse_int(field_map.get("Bytes Sent", ""))
+        connected_since = normalize_connected_since(
+            field_map.get("Connected Since (time_t)", "")
+            or field_map.get("Connected Since", "")
+        )
+        return OpenVPNConnection(
+            common_name=common_name,
+            real_address=real_address,
+            virtual_address=virtual_address,
+            bytes_received=bytes_received,
+            bytes_sent=bytes_sent,
+            connected_since=connected_since,
+            username=field_map.get("Username", ""),
+            client_id=field_map.get("Client ID", ""),
+            peer_id=field_map.get("Peer ID", ""),
+        )
+
+    has_ipv6_column = len(parts) > 6 and not parts[4].isdigit()
+
     def str_at(index: int) -> str:
         try:
             return parts[index]
@@ -135,13 +223,22 @@ def parse_client_list_csv(parts: list[str]) -> OpenVPNConnection:
         common_name=str_at(1),
         real_address=str_at(2),
         virtual_address=str_at(3),
-        bytes_received=int_at(4),
-        bytes_sent=int_at(5),
-        connected_since=normalize_connected_since(str_at(7) or str_at(6)),
-        username=str_at(9),
-        client_id=str_at(10),
-        peer_id=str_at(11),
+        bytes_received=int_at(5 if has_ipv6_column else 4),
+        bytes_sent=int_at(6 if has_ipv6_column else 5),
+        connected_since=normalize_connected_since(
+            str_at(8 if has_ipv6_column else 7) or str_at(7 if has_ipv6_column else 6)
+        ),
+        username=str_at(10 if has_ipv6_column else 9),
+        client_id=str_at(11 if has_ipv6_column else 10),
+        peer_id=str_at(12 if has_ipv6_column else 11),
     )
+
+
+def parse_int(value: str) -> int:
+    try:
+        return int(value)
+    except ValueError:
+        return 0
 
 
 def normalize_connected_since(value: str) -> str:

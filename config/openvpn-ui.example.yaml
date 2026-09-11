@@ -42,6 +42,8 @@ replicas: []
 # replicas:
 #   - name: vpn-1
 #     role: local
+#     status_file: /var/log/openvpn/status.log
+#     # Fill management_* after adding the OpenVPN management line.
 #     management_host: 127.0.0.1
 #     management_port: 7505
 #     management_password_file: /etc/openvpn/management-password
@@ -50,6 +52,8 @@ replicas: []
 #     ssh_host: 192.168.0.77
 #     ssh_user: root
 #     ssh_port: 22
+#     status_file: /var/log/openvpn/status.log
+#     # Fill management_* after adding the OpenVPN management line.
 #     management_host: 127.0.0.1
 #     management_port: 7505
 #     management_password_file: /etc/openvpn/management-password

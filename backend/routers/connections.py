@@ -51,7 +51,20 @@ def list_connections() -> dict[str, object]:
 
     if config.server.status_file and config.server.status_file.exists():
         connections = parse_status_file(config.server.status_file)
-        return {"source": "status_file", "nodes": [], "connections": [asdict(item) for item in connections]}
+        serialized = [asdict(item) for item in connections]
+        return {
+            "source": "status_file",
+            "nodes": [
+                {
+                    "name": "local",
+                    "role": "local",
+                    "status": "ok",
+                    "error": "",
+                    "connections": serialized,
+                }
+            ],
+            "connections": serialized,
+        }
 
     return {"source": "none", "nodes": [], "connections": []}
 
