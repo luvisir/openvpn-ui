@@ -49,6 +49,7 @@ OPENVPN_UI_CONFIG=/etc/openvpn-ui/openvpn-ui.yaml
 `lifecycle` describes optional command integrations:
 
 - `client_config_dir`
+- `command_timeout_seconds`
 - `create_user_command`
 - `generate_profile_command`
 - `disable_user_command`

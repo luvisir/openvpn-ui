@@ -6,6 +6,13 @@ The UI calls a non-interactive script. It should accept:
 ui-create-user.sh <common_name> <client_key_password> [reason]
 ```
 
+The repository includes a ready-to-copy script at `scripts/ui-create-user.sh`.
+It uses the existing paths from the current deployment:
+
+- `/etc/openvpn/client/easyrsa3`
+- `/etc/openvpn/easy-rsa/easyrsa3`
+- `/etc/openvpn/client/<common_name>`
+
 Example:
 
 ```bash
@@ -32,6 +39,7 @@ mkdir -p "/etc/openvpn/client/$client"
 
 cd /etc/openvpn/client/easyrsa3
 export EASYRSA_BATCH=1
+export EASYRSA_REQ_CN="$client"
 export CLIENT_KEY_PASSWORD="$client_password"
 export EASYRSA_PASSOUT="env:CLIENT_KEY_PASSWORD"
 ./easyrsa gen-req "$client"
@@ -53,6 +61,7 @@ Config:
 
 ```yaml
 lifecycle:
+  command_timeout_seconds: 600
   create_user_command:
     - /etc/openvpn/scripts/ui-create-user.sh
     - "{common_name}"

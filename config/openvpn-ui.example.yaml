@@ -29,6 +29,7 @@ lifecycle:
   # If a client-config-dir exists, reversible disable can be implemented there
   # before certificate revocation is enabled.
   client_config_dir:
+  command_timeout_seconds: 600
   create_user_command: []
   generate_profile_command: []
   disable_user_command: []

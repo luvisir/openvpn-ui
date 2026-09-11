@@ -22,6 +22,7 @@ def run_configured_command(
     common_name: str,
     reason: str = "",
     password: str = "",
+    timeout_seconds: int = 600,
 ) -> CommandResult:
     if not command:
         raise CommandError("Command is not configured")
@@ -40,7 +41,7 @@ def run_configured_command(
             check=False,
             capture_output=True,
             encoding="utf-8",
-            timeout=120,
+            timeout=timeout_seconds,
         )
     except OSError as exc:
         raise CommandError(str(exc)) from exc

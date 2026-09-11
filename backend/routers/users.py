@@ -40,6 +40,7 @@ def create_user(payload: CreateUserRequest) -> dict[str, object]:
             payload.common_name,
             payload.reason,
             payload.password,
+            config.lifecycle.command_timeout_seconds,
         )
         add_audit_event(config, "user.created", payload.common_name, payload.reason)
         return {"result": "created", "stdout": result.stdout}
@@ -57,7 +58,12 @@ def disable_user(common_name: str, payload: UserActionRequest) -> dict[str, obje
         raise HTTPException(status_code=403, detail="Disable user feature is disabled")
     try:
         if config.lifecycle.disable_user_command:
-            run_configured_command(config.lifecycle.disable_user_command, common_name, payload.reason)
+            run_configured_command(
+                config.lifecycle.disable_user_command,
+                common_name,
+                payload.reason,
+                timeout_seconds=config.lifecycle.command_timeout_seconds,
+            )
         set_user_disabled(config, common_name, True)
         add_audit_event(config, "user.disabled", common_name, payload.reason)
         return {"result": "disabled", "common_name": common_name}
@@ -73,7 +79,12 @@ def enable_user(common_name: str, payload: UserActionRequest) -> dict[str, objec
         raise HTTPException(status_code=403, detail="Enable user feature is disabled")
     try:
         if config.lifecycle.enable_user_command:
-            run_configured_command(config.lifecycle.enable_user_command, common_name, payload.reason)
+            run_configured_command(
+                config.lifecycle.enable_user_command,
+                common_name,
+                payload.reason,
+                timeout_seconds=config.lifecycle.command_timeout_seconds,
+            )
         set_user_disabled(config, common_name, False)
         add_audit_event(config, "user.enabled", common_name, payload.reason)
         return {"result": "enabled", "common_name": common_name}
@@ -92,7 +103,12 @@ def revoke_user(common_name: str, payload: UserActionRequest) -> dict[str, objec
     if not payload.reason:
         raise HTTPException(status_code=400, detail="Reason is required")
     try:
-        result = run_configured_command(config.lifecycle.revoke_user_command, common_name, payload.reason)
+        result = run_configured_command(
+            config.lifecycle.revoke_user_command,
+            common_name,
+            payload.reason,
+            timeout_seconds=config.lifecycle.command_timeout_seconds,
+        )
         add_audit_event(config, "user.revoked", common_name, payload.reason)
         return {"result": "revoked", "stdout": result.stdout}
     except CommandError as exc:

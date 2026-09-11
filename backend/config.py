@@ -40,6 +40,7 @@ class CertificateConfig(BaseModel):
 
 class LifecycleConfig(BaseModel):
     client_config_dir: Optional[Path] = None
+    command_timeout_seconds: int = Field(default=600, ge=10, le=3600)
     create_user_command: list[str] = Field(default_factory=list)
     generate_profile_command: list[str] = Field(default_factory=list)
     disable_user_command: list[str] = Field(default_factory=list)
@@ -123,6 +124,7 @@ class OpenVPNUIConfig(BaseModel):
                     if self.lifecycle.client_config_dir
                     else None
                 ),
+                "command_timeout_seconds": self.lifecycle.command_timeout_seconds,
                 "create_user_configured": bool(self.lifecycle.create_user_command),
                 "generate_profile_configured": bool(self.lifecycle.generate_profile_command),
                 "disable_user_configured": bool(self.lifecycle.disable_user_command),
