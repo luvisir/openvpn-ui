@@ -45,7 +45,6 @@ mkdir -p "/etc/openvpn/client/$client"
 
 cd /etc/openvpn/client/easyrsa3
 export EASYRSA_BATCH=1
-export EASYRSA_REQ_CN="$client"
 export CLIENT_KEY_PASSWORD="$client_password"
 export EASYRSA_PASSOUT="env:CLIENT_KEY_PASSWORD"
 ./easyrsa gen-req "$client"
@@ -83,3 +82,7 @@ features:
 
 Do not reload or restart OpenVPN in this script. New client certificates do not
 require restarting the server.
+
+Some Easy-RSA versions reject setting `EASYRSA_REQ_CN` or `--req-cn` while
+running `gen-req`. The script intentionally passes the client name only as the
+`gen-req "$client"` argument so it works with those versions.

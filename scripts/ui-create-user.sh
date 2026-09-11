@@ -31,7 +31,6 @@ mkdir -p "$client_dir"
 
 cd "$client_req_dir"
 export EASYRSA_BATCH=1
-export EASYRSA_REQ_CN="$client"
 export CLIENT_KEY_PASSWORD="$client_password"
 export EASYRSA_PASSOUT="env:CLIENT_KEY_PASSWORD"
 ./easyrsa gen-req "$client"
