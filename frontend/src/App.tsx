@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { OTPPage } from "./OTPPage";
 
-type Page = "dashboard" | "users" | "connections" | "audit" | "settings";
+type Page = "dashboard" | "users" | "connections" | "audit" | "settings" | "otp";
 type PathStatus = "ok" | "missing" | "wrong_type" | "not_configured";
 
 type PathCheck = {
@@ -27,6 +28,7 @@ type ConfigResponse = {
   certificates: Record<string, unknown>;
   lifecycle: Record<string, unknown>;
   features: Record<string, boolean>;
+  otp?: { enabled: boolean };
 };
 
 type VPNUser = {
@@ -89,6 +91,7 @@ const pages: Array<{ id: Page; label: string; title: string }> = [
   { id: "dashboard", label: "仪表盘", title: "运行概览" },
   { id: "users", label: "用户", title: "用户管理" },
   { id: "connections", label: "连接", title: "实时连接" },
+  { id: "otp", label: "OTP", title: "动态口令" },
   { id: "audit", label: "审计", title: "日志审计" },
   { id: "settings", label: "设置", title: "系统设置" }
 ];
@@ -135,6 +138,7 @@ export function App() {
   useEffect(() => {
     if (activePage === "audit") refreshLogs();
     if (activePage === "users") refreshUsers();
+    if (activePage === "otp") refreshUsers();
     if (activePage === "connections") refreshConnections();
   }, [activePage]);
 
@@ -284,6 +288,9 @@ export function App() {
             )}
             {activePage === "audit" && (
               <AuditPage audit={audit} openvpnLog={openvpnLog} onRefresh={refreshLogs} />
+            )}
+            {activePage === "otp" && (
+              <OTPPage enabled={Boolean(config?.otp?.enabled)} users={users} />
             )}
             {activePage === "settings" && (
               <SettingsPage

@@ -1,6 +1,12 @@
 # Server-ready sample for the existing vpn-1/vpn-2 layout.
 # Copy values into config/openvpn-ui.yaml on the VPN server and restart only openvpn-ui.
 
+otp:
+  enabled: false
+  issuer: OpenVPN
+  data_dir: /var/lib/openvpn-ui/otp
+  nodes: [vpn-1, vpn-2]
+
 app:
   name: OpenVPN UI
   environment: production

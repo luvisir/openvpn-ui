@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.routers import connections, logs, system, users
+from backend.routers import connections, logs, otp, system, users
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
@@ -15,6 +15,7 @@ def create_app() -> FastAPI:
     app.include_router(users.router, prefix="/api/users", tags=["users"])
     app.include_router(connections.router, prefix="/api/connections", tags=["connections"])
     app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
+    app.include_router(otp.router, prefix="/api/otp", tags=["otp"])
     mount_frontend(app)
     return app
 

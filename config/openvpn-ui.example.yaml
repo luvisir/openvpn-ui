@@ -1,6 +1,12 @@
 # Copy this file to config/openvpn-ui.yaml on the OpenVPN server, fill in the
 # real paths from the existing deployment, then restart the openvpn-ui service.
 
+otp:
+  enabled: false
+  issuer: OpenVPN
+  data_dir: /var/lib/openvpn-ui/otp
+  nodes: [vpn-1, vpn-2]
+
 app:
   name: OpenVPN UI
   environment: development

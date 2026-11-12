@@ -1,5 +1,11 @@
 # OpenVPN UI
 
+中文部署步骤：[OTP 部署操作手册](docs/16_OTP_QUICKSTART_ZH.md)。
+
+OTP deployment, client setup, dual-node testing, policy switches and rollback:
+[OTP guide](docs/15_OTP.md). OTP is disabled by default and never edits or restarts
+your existing OpenVPN service automatically.
+
 OpenVPN UI is a management interface designed to sit on top of an existing manually deployed OpenVPN server.
 
 The project must preserve the current OpenVPN installation:

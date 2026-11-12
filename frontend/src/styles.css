@@ -69,6 +69,7 @@ nav {
 }
 
 .workspace {
+  min-width: 0;
   padding: 34px;
 }
 
@@ -314,6 +315,7 @@ td {
 
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
@@ -394,6 +396,53 @@ input:focus {
 .notice p {
   color: #5d6872;
 }
+
+.otp-form, .otp-confirm {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+  margin-bottom: 16px;
+}
+
+.otp-form label, .otp-confirm label {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.otp-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.otp-toggle input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+}
+
+.otp-enrollment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.otp-enrollment img {
+  display: block;
+  width: 256px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.otp-enrollment > div { min-width: 0; max-width: 100%; }
+.otp-enrollment h3 { overflow-wrap: anywhere; }
+.otp-users-table { min-width: 480px; }
 
 @media (max-width: 860px) {
   .app-shell {

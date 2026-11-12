@@ -13,3 +13,9 @@ frontend/dist/
 .env
 config/openvpn-ui.yaml
 openvpn-ui.db
+
+# OTP runtime credentials and database belong outside the source tree.
+*.token
+encryption.key
+otp.db*
+config/otp-node.json

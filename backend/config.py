@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, Optional
@@ -84,6 +85,25 @@ class FeatureConfig(BaseModel):
     allow_openvpn_reload: bool = False
 
 
+class OTPConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    issuer: str = "OpenVPN"
+    data_dir: Path = Path("/var/lib/openvpn-ui/otp")
+    nodes: list[str] = Field(default_factory=lambda: ["vpn-1", "vpn-2"])
+
+    @field_validator("nodes")
+    @classmethod
+    def valid_nodes(cls, value: list[str]) -> list[str]:
+        if not value or len({name.lower() for name in value}) != len(value):
+            raise ValueError("OTP nodes must be nonempty and unique")
+        if "admin" in {name.lower() for name in value}:
+            raise ValueError("admin is reserved for the OTP administrator credential")
+        if any(not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name) for name in value):
+            raise ValueError("OTP node names may contain letters, digits, underscore and hyphen")
+        return value
+
+
 class OpenVPNUIConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -93,6 +113,7 @@ class OpenVPNUIConfig(BaseModel):
     lifecycle: LifecycleConfig = Field(default_factory=LifecycleConfig)
     replicas: list[ReplicaConfig] = Field(default_factory=list)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
+    otp: OTPConfig = Field(default_factory=OTPConfig)
 
     def sanitized(self) -> dict[str, Any]:
         return {
@@ -148,6 +169,7 @@ class OpenVPNUIConfig(BaseModel):
                 for replica in self.replicas
             ],
             "features": self.features.model_dump(),
+            "otp": {"enabled": self.otp.enabled},
         }
 
 

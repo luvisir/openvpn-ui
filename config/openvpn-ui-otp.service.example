@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenVPN UI OTP authentication service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/openvpn-ui
+Environment=OPENVPN_UI_CONFIG=/opt/openvpn-ui/config/openvpn-ui.yaml
+UMask=0077
+ExecStart=/opt/openvpn-ui/.venv/bin/python -m uvicorn backend.otp_service:app --host 127.0.0.1 --port 8001 --no-access-log
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
