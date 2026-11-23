@@ -7,7 +7,7 @@ ca_password="${3:-}"
 replica_host="${4:-192.168.0.77}"
 
 case "$client" in
-  ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.@-]*)
+  ""|.|..|-*|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.@-]*)
     echo "invalid client name" >&2
     exit 2
     ;;
@@ -26,6 +26,13 @@ fi
 client_req_dir="/etc/openvpn/client/easyrsa3"
 server_ca_dir="/etc/openvpn/easy-rsa/easyrsa3"
 client_dir="/etc/openvpn/client/$client"
+
+if [ -e "$client_req_dir/pki/private/$client.key" ] || \
+   [ -e "$server_ca_dir/pki/issued/$client.crt" ] || \
+   [ -e "$server_ca_dir/pki/reqs/$client.req" ]; then
+  echo "client already exists or has an incomplete request; inspect before retrying" >&2
+  exit 3
+fi
 
 mkdir -p "$client_dir"
 
@@ -48,4 +55,4 @@ cp "$server_ca_dir/pki/ca.crt" "$client_dir/"
 cp "$server_ca_dir/pki/issued/$client.crt" "$client_dir/"
 cp "$client_req_dir/pki/private/$client.key" "$client_dir/"
 
-rsync -avz --delete --exclude='server.conf' /etc/openvpn/ "root@$replica_host:/etc/openvpn/"
+rsync -avz --exclude='server.conf' /etc/openvpn/ "root@$replica_host:/etc/openvpn/"

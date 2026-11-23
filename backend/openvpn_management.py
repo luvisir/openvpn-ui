@@ -41,6 +41,8 @@ class OpenVPNManagementClient:
         if not is_safe_common_name(common_name):
             raise OpenVPNManagementError("Invalid common name")
         response = self._command(f"kill {common_name}")
+        if "SUCCESS:" not in response or "ERROR:" in response:
+            raise OpenVPNManagementError("OpenVPN did not confirm the kick operation")
         return {"common_name": common_name, "result": response.strip()}
 
     def _command(self, command: str) -> str:
@@ -64,6 +66,8 @@ class OpenVPNManagementClient:
             ) from exc
 
     def _send_line(self, sock: socket.socket, value: str) -> None:
+        if "\n" in value or "\r" in value:
+            raise OpenVPNManagementError("Management values must not contain newlines")
         sock.sendall(value.encode("utf-8") + b"\n")
 
     def _read_until_prompt(self, sock: socket.socket) -> str:
@@ -126,13 +130,13 @@ def parse_status_v2_text(text: str) -> list[OpenVPNConnection]:
         if len(parts) >= 3 and parts[0] == "HEADER" and parts[1] == "CLIENT_LIST":
             client_header = parts[2:]
             continue
-        if line.startswith("CLIENT_LIST,"):
+        if parts and parts[0] == "CLIENT_LIST":
             rows.append(parse_client_list_csv(parts, client_header))
     return rows
 
 
 def parse_classic_status_text(text: str) -> list[OpenVPNConnection]:
-    clients: dict[str, dict[str, object]] = {}
+    clients: dict[tuple[str, str], dict[str, object]] = {}
     section = ""
     for line in text.splitlines():
         if line == "OpenVPN CLIENT LIST":
@@ -152,7 +156,7 @@ def parse_classic_status_text(text: str) -> list[OpenVPNConnection]:
             if parts[0] in {"Updated", "Common Name"} or len(parts) < 5:
                 continue
             common_name = parts[0]
-            clients[common_name] = {
+            clients[(common_name, parts[1])] = {
                 "common_name": common_name,
                 "real_address": parts[1],
                 "virtual_address": "",
@@ -161,17 +165,18 @@ def parse_classic_status_text(text: str) -> list[OpenVPNConnection]:
                 "connected_since": normalize_connected_since(parts[4]),
             }
         elif section == "routes":
-            if parts[0] == "Virtual Address" or len(parts) < 2:
+            if parts[0] == "Virtual Address" or len(parts) < 3:
                 continue
-            common_name = parts[1]
-            if common_name in clients:
-                clients[common_name]["virtual_address"] = parts[0]
+            key = (parts[1], parts[2])
+            if key in clients:
+                clients[key]["virtual_address"] = parts[0]
 
     return [OpenVPNConnection(**client) for client in clients.values()]
 
 
 def parse_csv_line(line: str) -> list[str]:
-    return next(reader([line]))
+    delimiter = "\t" if line.startswith(("HEADER\t", "CLIENT_LIST\t")) else ","
+    return next(reader([line], delimiter=delimiter))
 
 
 def parse_client_list_csv(
@@ -248,6 +253,8 @@ def normalize_connected_since(value: str) -> str:
 
 
 def is_safe_common_name(value: str) -> bool:
-    return bool(value) and len(value) <= 128 and all(
-        char.isalnum() or char in {".", "-", "_", "@"} for char in value
+    return (
+        bool(value) and value not in {".", ".."} and not value.startswith("-")
+        and value.isascii() and len(value) <= 128
+        and all(char.isalnum() or char in {".", "-", "_", "@"} for char in value)
     )

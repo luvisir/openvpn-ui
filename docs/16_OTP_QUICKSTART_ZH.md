@@ -1,5 +1,16 @@
 # OTP 部署操作手册
 
+事故后的前置检查：vpn-1 必须保留已经验证有效的
+`/etc/systemd/system/openvpn.service.d/99-emergency-watchdog.conf`，确认
+`systemctl show openvpn.service -p WatchdogUSec` 返回 `0`，且进程 PID 和重启次数稳定。
+`daemon-reload` 和 `systemctl enable` 都可能重新加载全部单元，包括旧的 VPN 设置。
+不要把安装新服务视为绝对无影响；本次阶段不重启 OpenVPN、不修改 server.conf。
+
+更新本项目不会自动更新 `/etc/openvpn/scripts/` 中之前手工复制的生命周期脚本。
+检查配置中的脚本位置，再使用 `install -m 755 scripts/ui-*-user.sh /etc/openvpn/scripts/`
+更新本项目提供的四个脚本；不要覆盖你另行编写的同名脚本。
+新版同步不再使用整目录 `rsync --delete`，启用用户仅删除远端对应的面板管理 CCD。
+
 适用于现有 `/opt/openvpn-ui` 面板，vpn-1 部署面板和独立 OTP 服务，
 vpn-2 通过安全通道使用同一认证服务。不需要 Docker，不重发原有证书。
 
@@ -166,16 +177,18 @@ vpn-2 不部署第二套面板或 OTP 数据库。只安装 `verify.py`，将 `v
 安全传到 `/var/lib/openvpn-ui/otp-client/vpn-2.token`，权限 600。
 不要把 `admin.token`、加密密钥、数据库或 vpn-1 的令牌传过去。
 
-推荐 vpn-2 到 vpn-1 建立独立 SSH 本地转发，避免对外暴露认证端口。
-使用专用转发 SSH 密钥，核验并固定主机指纹，限制该密钥只能转发到目标端口。
+由 vpn-1 使用现有的免密方向连接 vpn-2，建立远程转发，不需要 vpn-2 免密登录 vpn-1。
+使用允许远程转发的 SSH 密钥，核验并固定 vpn-2 主机指纹；vpn-2 不得将该端口绑定公网。
 不要让转发依赖于它本身正在认证的 VPN 隧道。
 
 ```bash
-ssh -NT -o BatchMode=yes -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i /path/to/otp-tunnel-key -L 127.0.0.1:18001:127.0.0.1:8001 root@VPN1_INTERNAL_IP
+ssh -NT -o BatchMode=yes -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i /path/to/otp-tunnel-key -R 127.0.0.1:18001:127.0.0.1:8001 root@192.168.0.77
 ```
 
-将专用密钥路径和 vpn-1 内网地址替换成实际值。可使用项目里的
+在 vpn-1 执行，将密钥路径替换成实际可用的 SSH 私钥。可在 vpn-1 使用项目里的
 `config/openvpn-ui-otp-tunnel.service.example` 配置转发自启和失败重连。
+先在 vpn-2 检查 `ss -lntp` 确认 18001 仅绑定 127.0.0.1，并执行
+`curl --fail http://127.0.0.1:18001/health`，通过后才考虑接入 VPN。
 vpn-2 的 `node.json` 为：
 
 ```json

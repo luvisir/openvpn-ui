@@ -38,6 +38,8 @@ def create_user(payload: CreateUserRequest) -> dict[str, object]:
     config = _load()
     if not config.features.allow_create_user:
         raise HTTPException(status_code=403, detail="Create user feature is disabled")
+    if any(user["common_name"] == payload.common_name for user in list_users(config)):
+        raise HTTPException(status_code=409, detail="Certificate user already exists")
     try:
         result = run_configured_command(
             config.lifecycle.create_user_command,
@@ -61,6 +63,8 @@ def disable_user(common_name: str, payload: UserActionRequest) -> dict[str, obje
     config = _load()
     if not config.features.allow_disable_user:
         raise HTTPException(status_code=403, detail="Disable user feature is disabled")
+    if not config.lifecycle.disable_user_command:
+        raise HTTPException(status_code=409, detail="Disable user command is not configured")
     try:
         if config.lifecycle.disable_user_command:
             run_configured_command(
@@ -83,6 +87,8 @@ def enable_user(common_name: str, payload: UserActionRequest) -> dict[str, objec
     config = _load()
     if not config.features.allow_disable_user:
         raise HTTPException(status_code=403, detail="Enable user feature is disabled")
+    if not config.lifecycle.enable_user_command:
+        raise HTTPException(status_code=409, detail="Enable user command is not configured")
     try:
         if config.lifecycle.enable_user_command:
             run_configured_command(
@@ -149,7 +155,7 @@ def kick_user_on_configured_nodes(
                 }
             )
             add_audit_event(config, "user.kicked", f"{replica.name}:{common_name}")
-        except (OpenVPNManagementError, ReplicaError) as exc:
+        except (OSError, OpenVPNManagementError, ReplicaError) as exc:
             results.append({"node": replica.name, "result": str(exc), "status": "failed"})
             add_audit_event(
                 config,

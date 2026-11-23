@@ -13,6 +13,7 @@ from backend.openvpn_management import (
     OpenVPNManagementError,
     parse_status_file,
     parse_status_text,
+    is_safe_common_name,
 )
 
 
@@ -95,9 +96,13 @@ def get_replica_connections(
 
 
 def kill_on_replica(replica: ReplicaConfig, common_name: str) -> dict[str, str]:
+    if not is_safe_common_name(common_name):
+        raise ReplicaError("Invalid common name")
     if replica.role == "local":
         return local_client(replica).kill(common_name)
     response = run_remote_management_command(replica, f"kill {common_name}")
+    if "SUCCESS:" not in response or "ERROR:" in response:
+        raise ReplicaError("OpenVPN did not confirm the kick operation")
     return {"common_name": common_name, "result": response.strip(), "node": replica.name}
 
 
@@ -128,6 +133,8 @@ def run_remote_management_command(replica: ReplicaConfig, command: str) -> str:
     password = ""
     if replica.management_password_file:
         password = remote_cat(replica, str(replica.management_password_file)).strip()
+    if "\n" in password or "\r" in password:
+        raise ReplicaError("Management password must be a single line")
 
     script = REMOTE_MANAGEMENT_SCRIPT
     payload = json.dumps(
@@ -169,14 +176,13 @@ def run_ssh(
         destination,
         remote,
     ]
-    return subprocess.run(
-        argv,
-        input=input_text,
-        capture_output=True,
-        encoding="utf-8",
-        timeout=replica.ssh_connect_timeout + 15,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            argv, input=input_text, capture_output=True, encoding="utf-8",
+            timeout=replica.ssh_connect_timeout + 15, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ReplicaError("SSH operation failed or timed out") from exc
 
 
 REMOTE_MANAGEMENT_SCRIPT = r"""
@@ -204,6 +210,8 @@ def read_until(sock):
         if stripped.endswith("END") or "SUCCESS:" in joined or "ERROR:" in joined:
             break
         if "ENTER PASSWORD:" in joined.upper():
+            break
+        if joined.startswith(">INFO:") and joined.endswith(("\n", "\r\n")):
             break
         if stripped.endswith(">"):
             break

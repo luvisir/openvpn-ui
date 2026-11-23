@@ -6,7 +6,7 @@ ca_password="${2:-}"
 replica_host="${3:-192.168.0.77}"
 
 case "$client" in
-  ""|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.@-]*)
+  ""|.|..|-*|*[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.@-]*)
     echo "invalid client name" >&2
     exit 2
     ;;
@@ -27,4 +27,4 @@ export EASYRSA_PASSIN="env:CA_KEY_PASSWORD"
 ./easyrsa gen-crl
 unset CA_KEY_PASSWORD EASYRSA_PASSIN
 
-rsync -avz --delete --exclude='server.conf' /etc/openvpn/ "root@$replica_host:/etc/openvpn/"
+rsync -avz --exclude='server.conf' /etc/openvpn/ "root@$replica_host:/etc/openvpn/"

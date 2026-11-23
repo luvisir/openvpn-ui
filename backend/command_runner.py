@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import re
+import signal
 import subprocess
 from dataclasses import dataclass
 
@@ -38,26 +41,37 @@ def run_configured_command(
     }
     argv = [replace_tokens(part, replacements) for part in command]
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             argv,
-            check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
             encoding="utf-8",
-            timeout=timeout_seconds,
+            start_new_session=True,
         )
+        try:
+            stdout, stderr = process.communicate(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.communicate()
+            raise CommandError(f"Command timed out after {timeout_seconds} seconds")
     except OSError as exc:
-        raise CommandError(str(exc)) from exc
-    except subprocess.TimeoutExpired as exc:
-        raise CommandError(f"Command timed out after {exc.timeout} seconds") from exc
+        raise CommandError("Unable to execute configured command") from exc
 
-    result = CommandResult(completed.returncode, completed.stdout, completed.stderr)
-    if completed.returncode != 0:
+    for secret in sorted({password, ca_password} - {""}, key=len, reverse=True):
+        stdout = stdout.replace(secret, "[REDACTED]")
+        stderr = stderr.replace(secret, "[REDACTED]")
+    result = CommandResult(process.returncode, stdout, stderr)
+    if process.returncode != 0:
         raise CommandError(result.stderr or result.stdout or f"Command exited {result.returncode}")
     return result
 
 
 def replace_tokens(value: str, replacements: dict[str, str]) -> str:
-    result = value
-    for token, replacement in replacements.items():
-        result = result.replace(token, replacement)
-    return result
+    return re.sub(
+        r"\{(?:common_name|reason|password|ca_password)\}",
+        lambda match: replacements[match.group()], value,
+    )

@@ -430,8 +430,13 @@ function UsersPage({
 
   async function execute(url: string, body: object) {
     try {
-      await onPost(url, body);
-      onActionMessage("操作已完成");
+      const result = await onPost(url, body) as {
+        kick_results?: Array<{ node: string; status: string; result: string }>;
+      };
+      const failed = result.kick_results?.filter(item => item.status === "failed") ?? [];
+      onActionMessage(failed.length
+        ? `用户操作已执行，但踢下线失败：${failed.map(item => `${item.node}: ${item.result}`).join("；")}`
+        : "操作已完成");
       await onRefresh();
     } catch (err) {
       onActionMessage(err instanceof Error ? err.message : "操作失败");

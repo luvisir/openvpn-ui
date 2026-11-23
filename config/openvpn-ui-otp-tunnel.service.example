@@ -1,12 +1,13 @@
 [Unit]
-Description=OpenVPN OTP forwarding from vpn-2 to vpn-1
+Description=OpenVPN OTP reverse forwarding initiated on vpn-1
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-# Replace both placeholders and verify vpn-1's SSH host fingerprint first.
-ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i /path/to/otp-tunnel-key -L 127.0.0.1:18001:127.0.0.1:8001 root@VPN1_INTERNAL_IP
+# Install on vpn-1; uses root's default SSH identity/config, not an interactive agent.
+# If the existing key only lives in an agent, configure an explicit IdentityFile first.
+ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -R 127.0.0.1:18001:127.0.0.1:8001 root@192.168.0.77
 Restart=always
 RestartSec=5
 NoNewPrivileges=true

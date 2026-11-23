@@ -271,6 +271,7 @@ h2 {
 }
 
 .inline-message {
+  overflow-wrap: anywhere;
   border: 1px solid #dbe2e6;
   border-radius: 8px;
   padding: 10px 12px;

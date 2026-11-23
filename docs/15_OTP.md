@@ -1,5 +1,12 @@
 # OTP deployment and rollback
 
+After the production watchdog incident, retain the verified persistent vpn-1
+WatchdogSec=0 override and confirm stable PID/restart counters before service
+installation. Both daemon-reload and systemctl enable can reload all unit files.
+Use the corrected reverse-tunnel instructions in 16_OTP_QUICKSTART_ZH.md and the
+service template installed on vpn-1; the old vpn-2 local-forward alternative below
+requires separate reverse SSH access and is not the recommended layout here.
+
 This feature adds TOTP to the existing certificate authentication. It never edits
 OpenVPN configuration, restarts OpenVPN, moves certificates or changes rsync jobs.
 It uses PyOTP for TOTP, Fernet for encrypted secrets and SQLite transactions for
@@ -230,8 +237,9 @@ Configure vpn-2's JSON:
 }
 ```
 
-Supervise the tunnel via systemd with `Restart=always`, using the provided
-`config/openvpn-ui-otp-tunnel.service.example` after filling its placeholders.
+For this alternative local-forward layout, supply a matching vpn-2 systemd unit
+with `Restart=always`. The provided tunnel service template now instead implements
+the recommended reverse forwarding initiated on vpn-1; do not install it on vpn-2.
 The transport between hosts is SSH encrypted; the HTTP endpoint remains on
 loopback at both ends. Alternatively use HTTPS with verified certificates and
 `ca_file` in the hook JSON. LAN plain HTTP and HTTP redirects are rejected.
