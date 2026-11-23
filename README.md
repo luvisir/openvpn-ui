@@ -1,5 +1,11 @@
 # OpenVPN UI
 
+Connection status reads use status files by default, without opening OpenVPN
+management sockets. Management status fallback requires explicit
+`features.allow_management_status: true`. Manual kick operations keep their
+existing separate feature gate. This isolates status queries; it is not proof
+of the cause of any production watchdog timeout.
+
 中文部署步骤：[OTP 部署操作手册](docs/16_OTP_QUICKSTART_ZH.md)。
 
 OTP deployment, client setup, dual-node testing, policy switches and rollback:

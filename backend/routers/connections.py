@@ -29,7 +29,9 @@ def list_connections() -> dict[str, object]:
                 flattened.append({**connection, "node": node["name"]})
         return {"source": "replicas", "nodes": nodes, "connections": flattened}
 
-    management_client = create_management_client(config)
+    management_client = (
+        create_management_client(config) if config.features.allow_management_status else None
+    )
     if management_client:
         try:
             connections = management_client.status()

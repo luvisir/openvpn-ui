@@ -78,6 +78,7 @@ class ReplicaConfig(BaseModel):
 
 
 class FeatureConfig(BaseModel):
+    allow_management_status: bool = False
     allow_create_user: bool = False
     allow_disable_user: bool = False
     allow_kick_user: bool = False

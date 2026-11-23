@@ -46,7 +46,9 @@ def replica_statuses(config: OpenVPNUIConfig) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for replica in configured_replicas(config):
         try:
-            connections = get_replica_connections(replica)
+            connections = get_replica_connections(
+                replica, allow_management=config.features.allow_management_status
+            )
             rows.append(
                 {
                     "name": replica.name,
@@ -56,7 +58,7 @@ def replica_statuses(config: OpenVPNUIConfig) -> list[dict[str, object]]:
                     "connections": [asdict(item) for item in connections],
                 }
             )
-        except (OpenVPNManagementError, ReplicaError) as exc:
+        except (OSError, OpenVPNManagementError, ReplicaError) as exc:
             rows.append(
                 {
                     "name": replica.name,
@@ -69,22 +71,27 @@ def replica_statuses(config: OpenVPNUIConfig) -> list[dict[str, object]]:
     return rows
 
 
-def get_replica_connections(replica: ReplicaConfig) -> list[OpenVPNConnection]:
+def get_replica_connections(
+    replica: ReplicaConfig, *, allow_management: bool = False
+) -> list[OpenVPNConnection]:
     if replica.status_file:
         try:
             if replica.role == "local":
                 return parse_status_file(replica.status_file)
             return parse_status_text(remote_cat(replica, str(replica.status_file)))
         except (OSError, ReplicaError):
-            if not (replica.management_host and replica.management_port):
+            if not allow_management or not (replica.management_host and replica.management_port):
                 raise
 
-    if replica.management_host and replica.management_port:
+    if allow_management and replica.management_host and replica.management_port:
         if replica.role == "local":
             return local_client(replica).status()
         return parse_status_text(run_remote_management_command(replica, "status 2"))
 
-    raise ReplicaError(f"Replica {replica.name} has no management endpoint or status_file")
+    raise ReplicaError(
+        f"Replica {replica.name}: status file unavailable; management status access is disabled "
+        "unless features.allow_management_status is explicitly enabled"
+    )
 
 
 def kill_on_replica(replica: ReplicaConfig, common_name: str) -> dict[str, str]:
