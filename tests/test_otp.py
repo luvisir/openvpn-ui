@@ -53,9 +53,59 @@ def test_default_and_off_policy_still_checks_identity(store):
     assert not Path("/not-touched/server.conf").exists()
 
 
+def test_node_policies_are_independent_and_persistent(store):
+    assert store.status()["nodes"] == {"vpn-1": {"enforced": False}, "vpn-2": {"enforced": False}}
+    store.set_enforced(True, "vpn-1")
+    assert not store.verify("vpn-1", "alice", "alice", "placeholder")
+    assert store.verify("vpn-2", "alice", "alice", "placeholder")
+    reloaded = OTPStore(store.config)
+    assert reloaded.status()["nodes"]["vpn-2"]["enforced"] is False
+    reloaded.set_enforced(False, "vpn-1")
+    reloaded.set_enforced(True, "vpn-2")
+    assert reloaded.verify("vpn-1", "alice", "alice", "placeholder")
+    assert not reloaded.verify("vpn-2", "alice", "alice", "placeholder")
+    assert not reloaded.verify("unknown", "alice", "alice", "placeholder")
+    with pytest.raises(OTPError):
+        reloaded.set_enforced(True, "unknown")
+    assert reloaded.status()["events"][0]["node"] == "vpn-2"
+
+
+@pytest.mark.parametrize("legacy", [0, 1])
+def test_legacy_migration_preserves_binding_and_only_enables_primary(store, legacy):
+    import sqlite3
+    secret, _ = bind(store)
+    with sqlite3.connect(store.root / "otp.db") as db:
+        db.execute("DROP TABLE node_policies")
+        db.execute("UPDATE settings SET enforced=? WHERE id=1", (legacy,))
+    migrated = OTPStore(store.config)
+    state = migrated.status()
+    assert state["nodes"] == {"vpn-1": {"enforced": bool(legacy)}, "vpn-2": {"enforced": False}}
+    assert state["users"]["alice"]["bound"]
+    with migrated.connect() as db:
+        encrypted = db.execute("SELECT secret FROM users WHERE name='alice'").fetchone()[0]
+        assert migrated.cipher.decrypt(encrypted.encode()).decode() == secret
+    migrated.set_enforced(False, "vpn-1")
+    assert OTPStore(store.config).status()["nodes"]["vpn-1"]["enforced"] is False
+
+
+def test_policy_api_requires_explicit_node_and_node_specific_confirmation(store, monkeypatch):
+    from backend.main import create_app
+    from backend.routers import otp
+    monkeypatch.setattr(otp, "load_config", lambda: store.config)
+    headers = {"Authorization": "Bearer " + store.admin_token}
+    with TestClient(create_app()) as client:
+        assert client.post("/api/otp/policy", headers=headers, json={"enforced": True, "confirmation": "ENABLE"}).status_code == 422
+        assert client.post("/api/otp/policy", headers=headers, json={"node": "vpn-2", "enforced": True, "confirmation": "ENABLE vpn-1"}).status_code == 400
+        response = client.post("/api/otp/policy", headers=headers, json={"node": "vpn-1", "enforced": True, "confirmation": "ENABLE vpn-1"})
+        assert response.status_code == 200
+        assert response.json()["nodes"]["vpn-2"]["enforced"] is False
+        assert client.post("/api/otp/policy", headers=headers, json={"node": "unknown", "enforced": True, "confirmation": "ENABLE unknown"}).status_code == 400
+
+
 def test_required_otp_binding_and_atomic_cross_node_replay(store, monkeypatch):
     secret, now = bind(store)
     store.set_enforced(True)
+    store.set_enforced(True, "vpn-2")
     assert not store.verify("vpn-1", "bob", "bob", "123456")
     # Confirmation consumes its code too. Use the next time step for the login test.
     monkeypatch.setattr("backend.otp_store.time.time", lambda: now + 30)
@@ -105,6 +155,7 @@ def test_otp_rate_limit_and_disabled_user(store, monkeypatch):
     from backend.database import set_user_disabled
     secret, now = bind(store)
     store.set_enforced(True)
+    store.set_enforced(True, "vpn-2")
     for _ in range(5):
         assert not store.verify("vpn-1", "alice", "alice", "bad")
     monkeypatch.setattr("backend.otp_store.time.time", lambda: now + 30)
@@ -126,8 +177,8 @@ def test_admin_and_node_credentials_and_separate_service(store, monkeypatch):
         assert panel.get("/api/otp").status_code == 401
         admin = {"Authorization": "Bearer " + store.admin_token}
         assert panel.get("/api/otp", headers=admin).headers["cache-control"] == "no-store"
-        assert panel.post("/api/otp/policy", headers=admin, json={"enforced": True, "confirmation": "no"}).status_code == 400
-        assert panel.post("/api/otp/policy", headers=admin, json={"enforced": True, "confirmation": "ENABLE"}).status_code == 200
+        assert panel.post("/api/otp/policy", headers=admin, json={"node": "vpn-1", "enforced": True, "confirmation": "no"}).status_code == 400
+        assert panel.post("/api/otp/policy", headers=admin, json={"node": "vpn-1", "enforced": True, "confirmation": "ENABLE vpn-1"}).status_code == 200
         payload = {"node": "vpn-1", "common_name": "alice", "username": "alice", "code": "123456"}
         assert verifier.post("/verify", json=payload).status_code == 401
         assert verifier.post("/verify", headers=admin, json=payload).status_code == 401

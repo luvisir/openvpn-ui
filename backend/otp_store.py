@@ -56,6 +56,14 @@ class OTPStore:
         try:
             # Serialize check-and-consume across both VPN nodes and all worker processes.
             db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='node_policies'").fetchone():
+                # One-time migration: legacy enforcement applies only to the primary node.
+                db.execute("CREATE TABLE node_policies (node TEXT PRIMARY KEY, enforced INTEGER NOT NULL)")
+                legacy = db.execute("SELECT enforced FROM settings WHERE id=1").fetchone()[0]
+                primary = self.primary_node
+                db.execute("INSERT INTO node_policies VALUES (?,?)", (primary, int(bool(legacy))))
+            for node in self.config.otp.nodes:
+                db.execute("INSERT OR IGNORE INTO node_policies VALUES (?,0)", (node,))
             yield db
             db.commit()
         except Exception:
@@ -71,23 +79,34 @@ class OTPStore:
         )
         db.execute("DELETE FROM events WHERE id <= (SELECT COALESCE(MAX(id),0)-10000 FROM events)")
 
+    @property
+    def primary_node(self):
+        return "vpn-1" if "vpn-1" in self.config.otp.nodes else self.config.otp.nodes[0]
+
     def active_user(self, name):
         return any(u["common_name"] == name and u["status"] == "active"
                    for u in list_users(self.config))
 
     def status(self):
         with self.connect() as db:
-            enforced = bool(db.execute("SELECT enforced FROM settings WHERE id=1").fetchone()[0])
+            nodes = {r["node"]: {"enforced": bool(r["enforced"])}
+                     for r in db.execute("SELECT node,enforced FROM node_policies")
+                     if r["node"] in self.config.otp.nodes}
             users = {r["name"]: {"bound": bool(r["secret"]),
                                   "pending": bool(r["pending"] and r["pending_until"] > time.time())}
                      for r in db.execute("SELECT * FROM users")}
             events = [dict(r) for r in db.execute("SELECT * FROM events ORDER BY id DESC LIMIT 100")]
-        return {"enforced": enforced, "users": users, "events": events}
+        return {"enforced": nodes[self.primary_node]["enforced"],
+                "nodes": nodes, "users": users, "events": events}
 
-    def set_enforced(self, value):
+    def set_enforced(self, value, node=None):
+        node = node or self.primary_node
+        if node not in self.config.otp.nodes:
+            raise OTPError("Unknown OTP node")
         with self.connect() as db:
-            db.execute("UPDATE settings SET enforced=? WHERE id=1", (int(value),))
-            self.audit(db, "otp.enforcement", detail="enabled" if value else "disabled")
+            db.execute("UPDATE node_policies SET enforced=? WHERE node=?", (int(value), node))
+            self.audit(db, "otp.enforcement", node=node,
+                       detail="enabled" if value else "disabled")
 
     def enroll(self, name, confirmation):
         if not self.active_user(name):
@@ -151,10 +170,12 @@ class OTPStore:
                    (0 if failures >= 5 else failures, now + 60 if failures >= 5 else 0, name))
 
     def verify(self, node, name, username, code):
+        if node not in self.config.otp.nodes:
+            return False
         now = int(time.time())
         valid_user = self.active_user(name)
         with self.connect() as db:
-            enforced = bool(db.execute("SELECT enforced FROM settings WHERE id=1").fetchone()[0])
+            enforced = bool(db.execute("SELECT enforced FROM node_policies WHERE node=?", (node,)).fetchone()[0])
             row = db.execute("SELECT * FROM users WHERE name=?", (name,)).fetchone()
             detail = ""
             if not valid_user:

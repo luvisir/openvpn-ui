@@ -22,6 +22,7 @@ def admin_store(response: Response, authorization: Optional[str] = Header(defaul
 
 
 class PolicyRequest(BaseModel):
+    node: str = Field(min_length=1, max_length=64)
     enforced: bool
     confirmation: str
 
@@ -41,10 +42,13 @@ def status(store: OTPStore = Depends(admin_store)):
 
 @router.post("/policy")
 def policy(payload: PolicyRequest, store: OTPStore = Depends(admin_store)):
-    expected = "ENABLE" if payload.enforced else "DISABLE"
+    expected = ("ENABLE " if payload.enforced else "DISABLE ") + payload.node
     if payload.confirmation != expected:
         raise HTTPException(400, "Policy confirmation does not match")
-    store.set_enforced(payload.enforced)
+    try:
+        store.set_enforced(payload.enforced, payload.node)
+    except OTPError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return store.status()
 
 

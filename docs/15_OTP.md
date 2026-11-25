@@ -1,5 +1,14 @@
 # OTP deployment and rollback
 
+Since v0.3.3 policies are per node. POST /api/otp/policy requires `node`,
+`enforced`, and `confirmation` exactly `ENABLE <node>` or `DISABLE <node>`.
+There is no global policy write API. The legacy `enforced` status field is a
+read-only summary of the primary node for compatibility; use `nodes` instead.
+Migration preserves old enforcement only on vpn-1 (or the first configured
+node), defaults all other nodes OFF and preserves enrollment secrets. Restart
+both panel and verifier on upgrade; do not run old verifier processes alongside
+the new panel. See the Chinese guide for the current vpn-1-only rollout.
+
 After the production watchdog incident, retain the verified persistent vpn-1
 WatchdogSec=0 override and confirm stable PID/restart counters before service
 installation. Both daemon-reload and systemctl enable can reload all unit files.

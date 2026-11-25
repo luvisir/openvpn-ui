@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 type User = { common_name: string; status: string };
 type OTPStatus = {
   enforced: boolean;
+  nodes: Record<string, { enforced: boolean }>;
   users: Record<string, { bound: boolean; pending: boolean }>;
   events: { id: number; at: number; action: string; target: string; node: string; result: string; detail: string }[];
 };
@@ -35,7 +36,8 @@ export function OTPPage({ enabled, users }: { enabled: boolean; users: User[] })
   const [confirmation, setConfirmation] = useState("");
   const [code, setCode] = useState("");
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
-  const [policy, setPolicy] = useState<boolean | null>(null);
+  const [policy, setPolicy] = useState<{ node: string; enforced: boolean } | null>(null);
+  const policyConfirmation = policy ? `${policy.enforced ? "ENABLE" : "DISABLE"} ${policy.node}` : "";
 
   useEffect(() => {
     if (!enrollment) return;
@@ -100,7 +102,8 @@ export function OTPPage({ enabled, users }: { enabled: boolean; users: User[] })
   function changePolicy(event: FormEvent) {
     event.preventDefault();
     void run(async () => {
-      setStatus(await request("/policy", { enforced: policy, confirmation }));
+      if (!policy) return;
+      setStatus(await request("/policy", { ...policy, confirmation }));
       setPolicy(null); setConfirmation("");
       setMessage("认证策略已保存。已有会话不会立即断开，完整认证时使用新策略。");
     });
@@ -120,16 +123,16 @@ export function OTPPage({ enabled, users }: { enabled: boolean; users: User[] })
       {!token ? <form className="otp-form" onSubmit={unlock}>
         <label>OTP 管理凭据<input type="password" autoComplete="off" required value={credential} onChange={e => setCredential(e.target.value)} /></label>
         <button className="action-button" disabled={busy}>解锁</button>
-      </form> : <label className="otp-toggle">
-        <input type="checkbox" checked={Boolean(status?.enforced)} disabled={busy || policy !== null}
-          onChange={e => { setPolicy(e.target.checked); setConfirmation(""); }} />
-        强制验证动态口令
-        <span className={`status ${status?.enforced ? "good" : "warn"}`}>{status?.enforced ? "强制验证" : "未强制验证"}</span>
-      </label>}
+      </form> : Object.entries(status?.nodes ?? {}).map(([node, value]) => <label className="otp-toggle" key={node}>
+        <input type="checkbox" checked={value.enforced} disabled={busy || policy !== null}
+          onChange={e => { setPolicy({ node, enforced: e.target.checked }); setConfirmation(""); }} />
+        {node} 强制验证动态口令
+        <span className={`status ${value.enforced ? "good" : "warn"}`}>{value.enforced ? "强制验证" : "未强制验证"}</span>
+      </label>)}
       {policy !== null && token && <form className="otp-confirm" onSubmit={changePolicy}>
-        <p>{policy ? "开启后，未绑定动态口令的用户无法通过完整认证。" : "关闭后，完整认证将跳过动态口令校验，仍需运行认证服务。"}</p>
-        <label>输入 {policy ? "ENABLE" : "DISABLE"} 确认<input required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
-        <div className="button-group"><button className="danger-button" disabled={busy || confirmation !== (policy ? "ENABLE" : "DISABLE")}>确认变更</button>
+        <p>{policy.node}：{policy.enforced ? "开启后，未绑定动态口令的用户无法通过完整认证。首次使用需完成该节点的 VPN 接入。" : "关闭后，完整认证将跳过动态口令校验，已接入认证脚本的节点仍需运行认证服务。"}</p>
+        <label>输入 {policyConfirmation} 确认<input required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
+        <div className="button-group"><button className="danger-button" disabled={busy || confirmation !== policyConfirmation}>确认变更</button>
           <button type="button" className="action-button" disabled={busy} onClick={() => { setPolicy(null); setConfirmation(""); }}>取消</button></div>
       </form>}
       {error && <p className="inline-message" role="alert">{error}</p>}
